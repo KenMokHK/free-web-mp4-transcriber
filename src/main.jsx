@@ -27,16 +27,19 @@ const MODEL_OPTIONS = {
     label: 'Cantonese / Chinese / English',
     model: 'onnx-community/whisper-tiny_timestamped',
     language: null,
+    multilingual: true,
   },
   multilingualBetter: {
     label: 'Better accuracy (desktop)',
     model: 'onnx-community/whisper-small_timestamped',
     language: null,
+    multilingual: true,
   },
   english: {
     label: 'English only',
     model: 'onnx-community/whisper-tiny.en_timestamped',
     language: 'english',
+    multilingual: false,
   },
 };
 
@@ -210,6 +213,7 @@ function App() {
         audio,
         model: MODEL_OPTIONS[modelKey].model,
         language: MODEL_OPTIONS[modelKey].language,
+        multilingual: MODEL_OPTIONS[modelKey].multilingual,
       });
     } catch (err) {
       setError(err.message || 'Could not read the MP4 audio.');

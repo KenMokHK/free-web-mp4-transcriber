@@ -11,7 +11,7 @@ self.onmessage = async (event) => {
   if (message.type !== 'transcribe') return;
 
   try {
-    const { audio, model, language } = message;
+    const { audio, model, language, multilingual } = message;
     postStatus(`Loading ${model}`);
     if (!currentPipeline || currentModel !== model) {
       currentPipeline = await pipeline('automatic-speech-recognition', model, {
@@ -26,13 +26,20 @@ self.onmessage = async (event) => {
     }
 
     postProgress(50, 'Running speech recognition');
-    const result = await currentPipeline(audio, {
+    const generationOptions = {
       chunk_length_s: 30,
       stride_length_s: 5,
       return_timestamps: 'word',
-      language: language || undefined,
-      task: 'transcribe',
-    });
+    };
+    if (multilingual) {
+      generationOptions.is_multilingual = true;
+      generationOptions.task = 'transcribe';
+      if (language) {
+        generationOptions.language = language;
+      }
+    }
+
+    const result = await currentPipeline(audio, generationOptions);
     postProgress(98, 'Formatting timestamps');
     self.postMessage({ type: 'result', result });
   } catch (error) {

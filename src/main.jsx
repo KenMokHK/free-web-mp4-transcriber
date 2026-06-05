@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Clock,
-  Download,
   FileAudio,
   FileJson,
   FileText,
@@ -24,15 +23,20 @@ const SAMPLE_FILES = [
 ];
 
 const MODEL_OPTIONS = {
-  english: {
-    label: 'English',
-    model: 'onnx-community/whisper-tiny.en_timestamped',
-    language: 'english',
-  },
   multilingual: {
-    label: 'Auto / Multilingual',
+    label: 'Cantonese / Chinese / English',
     model: 'onnx-community/whisper-tiny_timestamped',
     language: null,
+  },
+  multilingualBetter: {
+    label: 'Better accuracy (desktop)',
+    model: 'onnx-community/whisper-small_timestamped',
+    language: null,
+  },
+  english: {
+    label: 'English only',
+    model: 'onnx-community/whisper-tiny.en_timestamped',
+    language: 'english',
   },
 };
 
@@ -96,7 +100,7 @@ function App() {
   const objectUrlRef = useRef(null);
   const [sources, setSources] = useState(SAMPLE_FILES);
   const [selectedSource, setSelectedSource] = useState(SAMPLE_FILES[0]);
-  const [modelKey, setModelKey] = useState('english');
+  const [modelKey, setModelKey] = useState('multilingual');
   const [status, setStatus] = useState('Ready');
   const [progress, setProgress] = useState(0);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -569,7 +573,7 @@ function normalizeTranscript(result) {
   const segments = [];
   let current = null;
   for (const word of words) {
-    if (!current || current.words.length >= 18 || /[.!?]$/.test(current.text)) {
+    if (!current || current.words.length >= 18 || /[.!?。！？]$/.test(current.text)) {
       current = { start: word.start, end: word.end, words: [], text: '' };
       segments.push(current);
     }
@@ -590,7 +594,7 @@ function createSummary(transcript) {
   const sentences = splitSentences(transcript.text);
   const frequencies = new Map();
   for (const token of tokenize(transcript.text)) {
-    if (!stopWords.has(token) && token.length > 2) {
+    if (!stopWords.has(token) && token.length > 1) {
       frequencies.set(token, (frequencies.get(token) || 0) + 1);
     }
   }
@@ -631,15 +635,24 @@ function createSummary(transcript) {
 function splitSentences(text) {
   return String(text)
     .replace(/\s+/g, ' ')
-    .split(/(?<=[.!?])\s+/)
+    .split(/(?<=[.!?。！？])\s*/)
     .map((sentence) => sentence.trim())
     .filter(Boolean);
 }
 
 function tokenize(text) {
-  return String(text)
-    .toLowerCase()
-    .match(/[a-z0-9']+/g) || [];
+  const normalized = String(text).toLowerCase();
+  const latinTokens = normalized.match(/[a-z0-9']+/g) || [];
+  const cjkRuns = normalized.match(/[\u3400-\u9fff]+/g) || [];
+  const cjkTokens = cjkRuns.flatMap((run) => {
+    if (run.length <= 2) return [run];
+    const tokens = [];
+    for (let i = 0; i < run.length - 1; i += 1) {
+      tokens.push(run.slice(i, i + 2));
+    }
+    return tokens;
+  });
+  return [...latinTokens, ...cjkTokens];
 }
 
 function buildExport(format, transcript, summary) {
